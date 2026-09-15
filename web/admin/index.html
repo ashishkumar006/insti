@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusGuide Admin • IIT Madras</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="topbar">
+  <img src="../assets/iitm-logo.svg" alt="IIT Madras logo" onerror="this.style.display='none'">
+  <div><b>CampusGuide Admin</b><div style="font-size:12px;color:#6B7A6F">IIT MADRAS • OFFICIAL DOCUMENTS</div></div>
+  <div style="margin-left:auto" class="row"><span id="who" style="font-size:12px"></span><button class="ghost" id="logout" style="display:none">Logout</button></div>
+</header>
+<main class="wrap">
+  <section class="card login" id="loginCard">
+    <h3>Admin sign in</h3>
+    <p style="color:#6B7A6F;font-size:13px">Use your admin account. Passwords are hashed, sessions expire.</p>
+    <div class="row"><input id="email" placeholder="admin@iitm.ac.in" style="flex:1"><input id="pw" type="password" placeholder="password"></div>
+    <div style="margin-top:10px"><button id="loginBtn">Sign in</button></div>
+    <div id="loginErr" style="color:#7A1C1C;font-size:13px"></div>
+  </section>
+  <div id="dash" style="display:none">
+    <section class="card">
+      <h3>Upload official document</h3>
+      <div id="drop">Drag &amp; drop PDF/TXT here or <button class="ghost" id="pick">Choose file</button>
+        <input type="file" id="file" accept=".pdf,.txt,.md,.html,.csv,.xlsx,.xls,.docx,.pptx" style="display:none"></div>
+      <div id="upmsg" style="font-size:13px;margin-top:8px"></div>
+      <div id="upbar" style="display:none;margin-top:10px;background:#F1E8D2;border:1px solid var(--line);border-radius:8px;height:14px;overflow:hidden;"><div id="upfill" style="height:100%;width:0%;background:var(--moss);transition:width .2s;"></div></div>
+      <div id="upmeta" style="font-size:12px;color:#6B7A6F;margin-top:4px"></div>
+    </section>
+    <section class="card"><h3>Documents</h3><div id="docs">Loading…</div></section>
+    <section class="card"><h3>Chunking &amp; embedding progress</h3>
+      <div id="jobbar" style="background:#F1E8D2;border:1px solid var(--line);border-radius:8px;height:14px;overflow:hidden;"><div id="jobfill" style="height:100%;width:0%;background:var(--maroon);transition:width .3s;"></div></div>
+      <div id="jobmeta" style="font-size:12px;color:#6B7A6F;margin:4px 0 8px;">No active job.</div>
+      <h3>Job log</h3><div id="log">Select a job to follow.</div></section>
+  </div>
+</main>
+<script src="./app.js"></script>
+</body>
+</html>

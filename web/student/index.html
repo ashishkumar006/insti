@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusGuide • IIT Madras</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="topbar">
+  <img src="../assets/iitm-logo.svg" alt="IIT Madras logo" onerror="this.style.display='none'">
+  <div class="brand"><b>CampusGuide</b><span>IIT Madras • Official docs</span></div>
+  <nav><a href="/admin/">Admin</a><a href="/api/v1/health">Status</a></nav>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Vanakkam! Ask campus questions</div>
+    <h1>Answers only from official IITM documents.</h1>
+    <p>Hostels, courses, penalties, charters, guides — with sources, in seconds.</p>
+  </section>
+  <section class="card">
+    <div class="search">
+      <input id="q" placeholder="e.g. What is the fine for tobacco possession?" autocomplete="off">
+      <select id="topk"><option value="5">Top 5</option><option value="10" selected>Top 10</option></select>
+      <button id="go">Ask</button>
+    </div>
+    <div class="recent" id="recent"></div>
+  </section>
+  <section class="card"><div id="answer">Type a question above and press Ask.</div>
+    <div class="sources" id="sources"></div><div class="meta" id="meta"></div>
+  </section>
+  <div class="tip">Friendly note: I never guess. If the documents don't contain it, I'll say so — please check with the official office.</div>
+</main>
+<footer>CampusGuide • IIT Madras • Student helper</footer>
+<script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Secrets — never commit real credentials
+.env
+*.pem
+*.key
+
+# Runtime / generated — recreated on boot
+var/
+indexes/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+
+# Local caches and one-off DBs
+archive/caches/
+archive/logs/
+archive/legacy-gateway/
+*.db
+
+# Internal / binary docs (not source)
+*.xlsx
+var/uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

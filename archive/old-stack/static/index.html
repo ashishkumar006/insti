@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Retrieval Agent · Document Indexer</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #c9d1d9;
+    --muted: #8b949e; --green: #3fb950; --red: #f85149; --blue: #58a6ff;
+    --yellow: #d29922; --accent: #a371f7; --orange: #db6d28;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; margin: 0; padding: 0; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header nav a { color: var(--blue); margin-left: 16px; text-decoration: none; font-size: 13px; }
+  header nav a:hover { text-decoration: underline; }
+  main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 24px 0 10px; font-weight: 600; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,0.5); }
+  .dot.err { background: var(--red); box-shadow: 0 0 6px rgba(248,81,73,0.5); }
+  .dot.proc { background: var(--yellow); box-shadow: 0 0 6px rgba(210,153,34,0.5); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  button { background: var(--blue); border: none; color: white; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+  button:hover { background: #3a8cf2; }
+  button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  button.danger { background: var(--red); }
+  button.danger:hover { background: #d73a49; }
+
+  .search-box { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .search-box input, .search-box select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 7px 12px; border-radius: 4px; font-size: 13px; }
+  .search-box input { flex: 1; min-width: 280px; }
+  .search-box input:focus, .search-box select:focus { outline: none; border-color: var(--blue); }
+
+  #log-area { background: #010409; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font: 12px ui-monospace, SFMono-Regular, monospace; height: 260px; overflow-y: auto; white-space: pre-wrap; color: var(--muted); }
+  #log-area .log-info { color: var(--text); }
+  #log-area .log-ok { color: var(--green); }
+  #log-area .log-err { color: var(--red); }
+  #log-area .log-warn { color: var(--yellow); }
+
+  #answer-area { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 14px; min-height: 80px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  #answer-area .source { color: var(--blue); font-size: 11px; font-family: ui-monospace, monospace; }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #21262d; color: var(--muted); }
+  .pill.ok { background: rgba(63,185,80,0.15); color: var(--green); }
+  .pill.err { background: rgba(248,81,73,0.15); color: var(--red); }
+  .pill.proc { background: rgba(210,153,34,0.15); color: var(--yellow); }
+
+  .stats { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 10px 16px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+
+  #indexing-overlay { display: none; position: fixed; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--yellow); border-radius: 6px; padding: 10px 14px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+  #indexing-overlay.active { display: block; }
+  #indexing-overlay .pill { margin-left: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📄 Retrieval Agent <span style="color:var(--accent)">Dashboard</span></h1>
+  <nav>
+    <a href="/">Documents & Search</a>
+    <a href="/help">Help</a>
+  </nav>
+</header>
+<main>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Documents</div>
+      <div class="value" id="stat-docs">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Indexed</div>
+      <div class="value" style="color:var(--green)" id="stat-indexed">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Total Chunks</div>
+      <div class="value" style="color:var(--blue)" id="stat-chunks">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Gateway</div>
+      <div class="value" style="font-size:14px;margin-top:6px;" id="stat-gateway">—</div>
+    </div>
+  </div>
+
+  <h2>Documents in <code>data/</code></h2>
+  <div class="panel">
+    <table>
+      <thead>
+        <tr><th>Status</th><th>File</th><th>Size</th><th>Chunks</th><th>Indexed</th><th>Action</th></tr>
+      </thead>
+      <tbody id="doc-table"></tbody>
+    </table>
+  </div>
+
+  <h2>Search Indexed Documents</h2>
+  <div class="panel">
+    <div class="search-box">
+      <input type="text" id="q" placeholder="Ask a question against indexed documents..." />
+      <select id="top-k"><option value="5">top 5</option><option value="10" selected>top 10</option><option value="20">top 20</option></select>
+      <select id="provider"><option value="">auto</option><option value="gemini">gemini</option><option value="ollama">ollama</option></select>
+      <button onclick="doAsk()">Search</button>
+    </div>
+    <div id="answer-area">Enter a query and press Search.</div>
+  </div>
+
+  <h2>Indexing Logs</h2>
+  <div id="log-area">Waiting for indexing activity...</div>
+
+  <div id="indexing-overlay">
+    <span id="overlay-msg">Indexing...</span>
+    <span class="pill proc" id="overlay-pill">PROCESSING</span>
+    <button onclick="cancelIndex()" style="margin-left:10px;" class="danger">Cancel</button>
+  </div>
+
+</main>
+
+<script>
+const GATEWAY = location.origin;
+let currentJob = null;
+let logLines = [];
+
+function $(id) { return document.getElementById(id); }
+
+async function loadDocuments() {
+  const r = await fetch(GATEWAY + '/api/documents');
+  const data = await r.json();
+  const tb = $('doc-table');
+  tb.innerHTML = '';
+  let indexedCount = 0, totalChunks = 0;
+  data.documents.forEach(doc => {
+    if (doc.indexed) indexedCount++;
+    if (doc.chunks) totalChunks += doc.chunks;
+    const tr = document.createElement('tr');
+    const dotClass = doc.indexing ? 'proc' : (doc.indexed ? 'ok' : 'err');
+    const statusLabel = doc.indexing ? '<span class="pill proc">INDEXING</span>' : (doc.indexed ? '<span class="pill ok">INDEXED</span>' : '<span class="pill err">NOT INDEXED</span>');
+    const btn = doc.indexing
+      ? '<button disabled>Indexing...</button>'
+      : (doc.indexed
+        ? `<button onclick="reindex('${doc.name}')">Re-index</button>`
+        : `<button onclick="startIndex('${doc.name}')">Index Now</button>`);
+    const delBtn = doc.indexed
+      ? `<button onclick="deleteChunks('${doc.name}')" class="danger">Delete Chunks</button>`
+      : '';
+    tr.innerHTML = `
+      <td><span class="dot ${dotClass}"></span>${statusLabel}</td>
+      <td>${doc.name}</td>
+      <td>${doc.size_human}</td>
+      <td>${doc.chunks || '—'}</td>
+      <td>${doc.indexed ? 'Yes' : 'No'}</td>
+      <td>${btn} ${delBtn}</td>
+    `;
+    tb.appendChild(tr);
+  });
+  $('stat-docs').textContent = data.documents.length;
+  $('stat-indexed').textContent = indexedCount;
+  $('stat-chunks').textContent = totalChunks;
+  $('stat-gateway').textContent = data.gateway_url || GATEWAY;
+}
+
+async function startIndex(filename) {
+  if (currentJob) { alert('Already indexing. Please wait.'); return; }
+  $('log-area').innerHTML = '';
+  logLines = [];
+  appendLog('info', `Starting index of "${filename}"...`);
+  $('indexing-overlay').classList.add('active');
+  currentJob = { filename, cancelled: false };
+  try {
+    const r = await fetch(GATEWAY + `/api/index/${encodeURIComponent(filename)}`, { method: 'POST' });
+    if (!r.ok) { throw new Error((await r.json()).detail || r.statusText); }
+    const data = await r.json();
+    currentJob.jobId = data.job_id;
+    pollLogs();
+  } catch (e) {
+    appendLog('err', 'Failed: ' + e.message);
+    resetJob();
+  }
+}
+
+async function reindex(filename) {
+  await startIndex(filename);
+}
+
+async function deleteChunks(filename) {
+  if (!confirm(`Delete all indexed chunks for "${filename}"?`)) return;
+  try {
+    const r = await fetch(GATEWAY + `/api/index/${encodeURIComponent(filename)}/delete`, { method: 'POST' });
+    if (!r.ok) { throw new Error((await r.json()).detail || r.statusText); }
+    const data = await r.json();
+    appendLog('ok', `Deleted ${data.deleted_chunks} chunks for ${filename}`);
+    loadDocuments();
+  } catch (e) {
+    appendLog('err', 'Delete failed: ' + e.message);
+  }
+}
+
+async function cancelIndex() {
+  if (!currentJob) return;
+  currentJob.cancelled = true;
+  appendLog('warn', 'Cancelling...');
+  resetJob();
+}
+
+async function pollLogs() {
+  if (!currentJob) return;
+  try {
+    const r = await fetch(GATEWAY + `/api/logs?job_id=${currentJob.jobId}&since=${currentJob.lastLogSeq || 0}`);
+    const data = await r.json();
+    (data.logs || []).forEach(l => appendLog(l.level, l.message));
+    if (currentJob.cancelled) return;
+    if (data.done) {
+      appendLog(data.error ? 'err' : 'ok', data.error || 'Indexing complete.');
+      resetJob();
+      loadDocuments();
+      return;
+    }
+    if (data.job_id) currentJob.jobId = data.job_id;
+    if (data.last_seq) currentJob.lastLogSeq = data.last_seq;
+    setTimeout(pollLogs, 500);
+  } catch (e) {
+    setTimeout(pollLogs, 1000);
+  }
+}
+
+function resetJob() {
+  currentJob = null;
+  $('indexing-overlay').classList.remove('active');
+}
+
+async function doAsk() {
+  const q = $('q').value.trim();
+  if (!q) return;
+  const out = $('answer-area');
+  out.innerHTML = '<span style="color:var(--muted)">⏳ Searching...</span>';
+  try {
+    const body = { query: q, top_k: parseInt($('top-k').value), max_turns: 4 };
+    const prov = $('provider').value;
+    if (prov) body.provider = prov;
+    const r = await fetch(GATEWAY + '/ask', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) {
+      let err = 'Server error';
+      const txt = await r.text();
+      try { const j = JSON.parse(txt); err = JSON.stringify(j.detail || j); } catch(e) {}
+      out.innerHTML = '<span style="color:var(--red)">❌ ' + err + '</span>';
+      return;
+    }
+    const data = await r.json();
+    let html = '<div style="margin-bottom:8px"><b>Answer:</b></div>';
+    html += '<div>' + escapeHtml(data.answer) + '</div>';
+    if (data.sources && data.sources.length) {
+      html += '<div class="source" style="margin-top:10px">Sources: ' + data.sources.slice(0, 10).join(', ') + (data.sources.length > 10 ? '...' : '') + '</div>';
+    }
+    html += '<div class="source" style="margin-top:4px">Tool calls: ' + data.tool_calls_used + '</div>';
+    out.innerHTML = html;
+  } catch (e) {
+    out.innerHTML = '<span style="color:var(--red)">❌ ' + e.message + '</span>';
+  }
+}
+
+function appendLog(level, message) {
+  const ts = new Date().toLocaleTimeString();
+  logLines.push({ ts, level, message });
+  const el = document.createElement('div');
+  el.className = 'log-' + (level || 'info');
+  el.textContent = '[' + ts + '] ' + message;
+  $('log-area').appendChild(el);
+  $('log-area').scrollTop = $('log-area').scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') doAsk(); });
+
+loadDocuments();
+setInterval(loadDocuments, 5000);
+</script>
+</body>
+</html>
