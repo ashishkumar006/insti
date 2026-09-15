@@ -9,7 +9,7 @@
 <header class="topbar">
   <img src="../assets/iitm-logo.svg" alt="IIT Madras logo" onerror="this.style.display='none'">
   <div class="brand"><b>CampusGuide</b><span>IIT Madras • Official docs</span></div>
-  <nav><a href="/admin/">Admin</a><a href="/api/v1/health">Status</a></nav>
+  <div class="stats-pill" id="statspill" title="Indexed corpus">…</div>
 </header>
 <main class="wrap">
   <section class="hero">
@@ -18,19 +18,31 @@
     <p>Hostels, courses, penalties, charters, guides — with sources, in seconds.</p>
   </section>
   <section class="card">
+    <label class="ask-label" for="q">Ask a question</label>
     <div class="search">
-      <input id="q" placeholder="e.g. What is the fine for tobacco possession?" autocomplete="off">
-      <select id="topk"><option value="5">Top 5</option><option value="10" selected>Top 10</option></select>
-      <button id="go">Ask</button>
+      <input id="q" placeholder="e.g. What is the fine for tobacco possession?" autocomplete="off" maxlength="500">
+      <select id="topk" title="How many sources to use"><option value="5">Top 5</option><option value="10" selected>Top 10</option></select>
+      <button id="go">Ask →</button>
     </div>
+    <div class="chips" id="chips"></div>
     <div class="recent" id="recent"></div>
   </section>
-  <section class="card"><div id="answer">Type a question above and press Ask.</div>
-    <div class="sources" id="sources"></div><div class="meta" id="meta"></div>
+  <section class="card answer-card" id="anscard">
+    <div class="ans-head"><span id="ansflag">ANSWER • grounded</span><span id="anstime"></span></div>
+    <div id="answer">Type a question above and press Ask.</div>
+    <div class="citepills" id="citepills"></div>
+    <div class="sources" id="sources"></div>
+    <div class="ans-actions">
+      <button class="ghost" id="copybtn" style="display:none">Copy answer</button>
+      <span class="vote" id="vote" style="display:none">Was this helpful?
+        <button class="ghost" id="yesbtn" title="Yes">✓</button><button class="ghost" id="nobtn" title="No">✗</button>
+      </span>
+      <span class="meta" id="meta"></span>
+    </div>
   </section>
   <div class="tip">Friendly note: I never guess. If the documents don't contain it, I'll say so — please check with the official office.</div>
 </main>
-<footer>CampusGuide • IIT Madras • Student helper</footer>
+<footer>CampusGuide • IIT Madras • Student helper &nbsp;•&nbsp; <a href="/admin/">Admin</a> &nbsp;•&nbsp; <a href="/api/v1/health">Status</a></footer>
 <script src="./app.js"></script>
 </body>
 </html>
