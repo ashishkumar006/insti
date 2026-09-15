@@ -16,38 +16,28 @@ async function doAsk(){
   const q=$("q").value.trim(); if(!q||$("go").disabled) return; pushRecent(q);
   $("go").disabled=true;
   $("answer").className="loading";$("answer").innerHTML=`<span class="skel" style="width:92%"></span><span class="skel" style="width:78%"></span><span class="skel" style="width:85%"></span>`;
-  $("citepills").innerHTML="";$("sources").innerHTML="";$("meta").textContent="";$("anstime").textContent="";
+  $("docnames").innerHTML="";$("meta").textContent="";$("anstime").textContent="";
   $("copybtn").style.display="none";$("vote").style.display="none";
   document.querySelectorAll("#vote button").forEach(b=>b.classList.remove("on"));
   try{
     const topk=parseInt($("topk").value||"10");
-    const [ra,rs]=await Promise.all([
-      fetch("/api/v1/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,top_k:topk,max_turns:4})}),
-      fetch("/api/v1/search?q="+encodeURIComponent(q)+"&top_k="+topk).catch(()=>null)]);
+    const ra=await fetch("/api/v1/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,top_k:topk,max_turns:4})});
     if(!ra.ok){$("answer").className="";$("answer").innerHTML=`<div class="err">Sorry — server error (${ra.status}). Please try again.</div>`;return}
     const d=await ra.json();
-    let hits=[]; try{hits=(rs&&rs.ok)?(await rs.json()).results||[]:[]}catch(e){hits=[]}
-    const byId={};hits.forEach(h=>byId[h.chunk_id]=h);
     const srcs=(d.sources||[]).slice(0,12);
-    // numbered citations: longest chunk_ids first so nested replaces are safe
+    // numbered citations: longest chunk_ids first so nested replaces are safe.
+    // Only the short [n] refs are shown; raw chunk internals stay server-side.
     lastNum=srcs.map((cid,i)=>({n:i+1,cid}));
     let html=esc(d.answer||"(no answer)");
     [...lastNum].sort((a,b)=>b.cid.length-a.cid.length).forEach(({n,cid})=>
-      {html=html.split(esc(cid)).join(`<a href="#src${n}" title="${esc(cid)}">[${n}]</a>`)});
+      {html=html.split(esc(cid)).join(`[${n}]`)});
     lastAnswer=d.answer||"";
     $("answer").className="";$("answer").innerHTML=html||"(no answer)";
-    $("citepills").innerHTML=lastNum.map(({n,cid})=>`<a href="#src${n}" title="${esc(cid)}">[${n}]</a>`).join("");
-    // source cards, scores normalized across matched hits (relative match)
-    const scores=srcs.map(cid=>byId[cid]?byId[cid].score:null).filter(s=>s!==null);
-    const mx=Math.max(...scores,0),mn=Math.min(...scores,0);
-    $("sources").innerHTML=srcs.map((cid,i)=>{const p=parseSrc(cid),h=byId[cid];
-      const pct=h&&mx>mn?Math.round(12+88*(h.score-mn)/(mx-mn)):Math.round(100/(i+2)+20);
-      const snip=h&&h.text?esc(h.text.slice(0,160))+(h.text.length>160?"…":""):"";
-      const rel=h?" • relative match "+pct+"%":"";
-      const snipdiv=snip?'<div class="chunk">'+snip+'</div>':"";
-      return '<div class="src" id="src'+(i+1)+'"><b>['+(i+1)+'] '+esc(p.doc||cid)+'</b><div class="chunk">'+esc(p.chunk)+rel+'</div>'+snipdiv+'<div class="bar"><i style="width:'+pct+'%"></i></div></div>'}).join("");
+    // source document names only — no chunk ids, scores or snippets
+    const docs=[...new Set(srcs.map(cid=>parseSrc(cid).doc).filter(Boolean))];
+    $("docnames").innerHTML=docs.length?`<b>Sources:</b> ${docs.map(x=>esc(x)).join(" • ")}`:"";
     $("anstime").textContent=`${(d.ms||0)} ms`;
-    $("meta").textContent=`Sources: ${srcs.length} • ${(d.ms||0)} ms • Grounded in official docs`;
+    $("meta").textContent=`${(d.ms||0)} ms • Grounded in official docs`;
     $("ansflag").textContent="ANSWER • grounded";
     if(lastAnswer){$("copybtn").style.display="inline-block";$("vote").style.display="inline";
       const k="cg_vote_"+lastAnswer.length+"_"+(lastAnswer.slice(0,32)||"");
