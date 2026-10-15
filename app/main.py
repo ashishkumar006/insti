@@ -1,6 +1,7 @@
 """App factory. Old flat main.py left untouched; this is the clean entrypoint."""
 import os
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import student, admin, system
@@ -36,4 +37,4 @@ for _p, _sub in (("/student", "student"), ("/admin", "admin"), ("/assets", "asse
 
 @app.get("/")
 def root():
-    return {"service": "CampusGuide", "ui": ["/student", "/admin"], "api": "/api/v1/health"}
+    return RedirectResponse("/student")

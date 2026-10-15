@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ocr_mode: str = os.getenv("OCR_MODE", "auto")  # auto | gemini | ollama | off
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "phi4-mini")
-    paygo_chat_model: str = os.getenv("PAYGO_CHAT_MODEL", "gemini-2.0-flash")
+    paygo_chat_model: str = os.getenv("PAYGO_CHAT_MODEL", "gemini-flash-lite-latest")
     paygo_embed_model: str = os.getenv("PAYGO_EMBED_MODEL", "gemini-embedding-001")
     # --- Retrieval / chunking ---
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "750"))

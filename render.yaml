@@ -41,7 +41,7 @@ services:
 
       # --- Gemini models ---
       - key: PAYGO_CHAT_MODEL
-        value: gemini-2.0-flash
+        value: gemini-flash-lite-latest
       - key: PAYGO_EMBED_MODEL
         value: gemini-embedding-001
       - key: GEMINI_API_KEY

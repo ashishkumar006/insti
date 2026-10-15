@@ -2,7 +2,7 @@
 REM CampusGuide - start everything (double-click). Runs outside any sandbox so Postgres backends survive.
 cd /d %~dp0
 set OLLAMA_URL=http://127.0.0.1:11434
-set PAYGO_CHAT_MODEL=gemini-3.5-flash-lite
+set PAYGO_CHAT_MODEL=gemini-flash-lite-latest
 if not exist var\logs mkdir var\logs
 echo [1/2] Postgres (first run initializes data dir + role + db)...
 if not exist var\pgdata\PG_VERSION var\pgsql\bin\initdb.exe -D var\pgdata -U postgres -A trust -E UTF8 --locale=C
