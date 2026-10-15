@@ -1,7 +1,9 @@
-"""Direct adapter: Gemini API first when configured for cloud, else local Ollama.
+"""Direct adapter: Gemini for embeddings and chat; Ollama chat only as an
+offline-dev fallback.
 
-Cloud (no localhost): EMBED_MODE=gemini -> Gemini embeddings + Gemini chat.
-Local dev (default): Ollama embeddings (+ Gemini fallback), Gemini chat (+ Ollama fallback).
+Embeddings are Gemini-only by design: mixing embedding models inside one index
+silently corrupts retrieval, so a missing key fails loudly instead of falling
+back to a different model.
 """
 from typing import Dict, List, Optional
 from app.config import cfg
@@ -17,34 +19,21 @@ class DirectAdapter(LLMProvider):
         self._ollama = OllamaAdapter()
         key = cfg.gemini_api_key or cfg.paygo_api_key
         self._gemini = GeminiAdapter(key) if key else None
-        self._embed_mode = (cfg.embed_mode or "ollama").lower()
 
     def _gemini_or_raise(self):
         if self._gemini is None:
-            raise RuntimeError("no Gemini key and Ollama failed")
+            raise RuntimeError(
+                "GEMINI_API_KEY is not set - Gemini is the only embedding provider")
         return self._gemini
 
     def embed(self, text: str) -> Dict:
-        if self._embed_mode == "gemini":
-            try:
-                return self._gemini_or_raise().embed(text)
-            except Exception:
-                return self._ollama.embed(text)
-        try:
-            return self._ollama.embed(text)
-        except Exception:
-            return self._gemini_or_raise().embed(text)
+        return self._gemini_or_raise().embed(text)
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        return self._gemini_or_raise().embed_batch(texts)
 
     def embed_query(self, text: str) -> Dict:
-        if self._embed_mode == "gemini":
-            try:
-                return self._gemini_or_raise().embed_query(text)
-            except Exception:
-                return self._ollama.embed_query(text)
-        try:
-            return self._ollama.embed_query(text)
-        except Exception:
-            return self._gemini_or_raise().embed_query(text)
+        return self._gemini_or_raise().embed_query(text)
 
     def chat(self, messages: Optional[List[dict]] = None, system: Optional[str] = None,
              tools: Optional[list] = None, tool_choice: Optional[str] = None,

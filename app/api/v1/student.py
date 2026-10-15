@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest):
-    out = qs.ask(req.query, req.top_k or cfg.top_k, req.max_turns)
+    out = qs.ask(req.query, req.top_k or cfg.top_k)
     return {"query": req.query, **out}
 
 

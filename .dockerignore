@@ -1,0 +1,14 @@
+# Keep the build context small and secret-free.
+# Dockerfile only needs: requirements.txt, app/ (UI included), migrations/.
+.git
+.env
+.env.*
+var/
+indexes/
+archive/
+data/
+.pytest_cache/
+**/__pycache__/
+*.pyc
+*.log
+*.db

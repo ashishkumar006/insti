@@ -1,5 +1,6 @@
 """Gemini pay-go adapter. REST only, key stays server-side, never logged."""
 from typing import Dict, List, Optional
+import time
 import httpx
 
 from app.config import cfg
@@ -37,6 +38,54 @@ class GeminiAdapter(LLMProvider):
 
     def embed_query(self, text: str) -> Dict:
         return self._embed_one(text, "retrieval_query")
+
+    def _post_retry(self, client: httpx.Client, url: str, body: dict,
+                    attempts: int = 5) -> dict:
+        """POST with exponential backoff on 429/5xx; honors Retry-After."""
+        delay = 1.0
+        status = None
+        for n in range(attempts):
+            r = client.post(url, json=body, params={"key": self.api_key})
+            if r.status_code == 200:
+                return r.json()
+            status = r.status_code
+            if status not in (429, 500, 502, 503, 504):
+                break
+            if n < attempts - 1:
+                try:
+                    wait = max(delay, float(r.headers.get("retry-after") or 0))
+                except ValueError:
+                    wait = delay
+                time.sleep(min(wait, 60.0))
+                delay *= 2
+        raise RuntimeError("gemini call failed: {}".format(status))
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        """Batch embed documents via batchEmbedContents (up to 100 per request)."""
+        if not texts:
+            return []
+        size = max(1, min(100, cfg.embed_batch_size))
+        url = ("https://generativelanguage.googleapis.com/v1beta/models/{}"
+               ":batchEmbedContents".format(self.embed_model))
+        out: List[List[float]] = []
+        with httpx.Client(timeout=120.0) as c:
+            for i in range(0, len(texts), size):
+                reqs = [{"model": "models/" + self.embed_model,
+                         "content": {"parts": [{"text": t}]},
+                         "taskType": "RETRIEVAL_DOCUMENT",
+                         "outputDimensionality": cfg.embed_dim}
+                        for t in texts[i:i + size]]
+                data = self._post_retry(c, url, {"requests": reqs})
+                embs = data.get("embeddings") or []
+                if len(embs) != len(reqs):
+                    raise RuntimeError("gemini batch returned {} embeddings for {} inputs"
+                                       .format(len(embs), len(reqs)))
+                for e in embs:
+                    vec = e.get("values") or []
+                    if not vec:
+                        raise RuntimeError("gemini returned no embedding")
+                    out.append(vec)
+        return out
 
     def chat(self, messages: Optional[List[dict]] = None, system: Optional[str] = None,
              tools: Optional[list] = None, tool_choice: Optional[str] = None,

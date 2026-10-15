@@ -1,4 +1,4 @@
-"""Student query path: gateway -> agent w/ tools; direct -> local index + grounded answer."""
+"""Student query path: Postgres hybrid retrieval + grounded Gemini answer."""
 import os
 import sys
 import time
@@ -6,18 +6,10 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.config import cfg
-from app.agent.runner import run_agent
 from app.llm.factory import get_llm
 
 
-def _local_retriever(llm):
-    from app.legacy.vector_store import DenseStore
-    from app.legacy.sparse_store import SparseStore
-    from app.legacy.retriever import HybridRetriever
-    return HybridRetriever(DenseStore(dim=cfg.embed_dim), SparseStore(), llm)
-
-
-def _direct_answer(query: str, hits: list, llm) -> str:
+def _grounded_answer(query: str, hits: list, llm) -> str:
     parts = ["[{}]\n{}".format(h["chunk_id"], h["text"]) for h in hits[:6]]
     ctx = "\n\n---\n\n".join(parts) if parts else "(no matching chunks found)"
     system = ("You are a helpful IIT Madras campus assistant. "
@@ -30,34 +22,19 @@ def _direct_answer(query: str, hits: list, llm) -> str:
     return resp.get("text", "")
 
 
-def _direct_hits(llm, query: str, top_k: int):
-    # Postgres first (admin uploads), local file index as fallback.
-    try:
-        from app.retrieval.retriever import PgHybridRetriever
-        hits, dbg = PgHybridRetriever(llm).retrieve_debug(query, top_k=top_k)
-        dbg["backend"] = "postgres"
-        if hits:
-            return hits, dbg
-    except Exception:
-        pass
-    hits, dbg = _local_retriever(llm).retrieve_debug(query, top_k=top_k)
-    dbg["backend"] = "local-files"
+def _hits(llm, query: str, top_k: int):
+    from app.retrieval.retriever import PgHybridRetriever
+    hits, dbg = PgHybridRetriever(llm).retrieve_debug(query, top_k=top_k)
+    dbg["backend"] = "postgres"
     return hits, dbg
 
 
-def ask(query: str, top_k: int = 10, max_turns: int = 4) -> dict:
+def ask(query: str, top_k: int = 10) -> dict:
     t0 = time.time()
     llm = get_llm()
-    if cfg.llm_mode == "gateway":
-        from app.retrieval.retriever import PgHybridRetriever
-        res = run_agent(query, PgHybridRetriever(llm), llm, max_turns=max_turns)
-        answer, sources, calls = res.answer, res.sources, res.tool_calls_used
-        dbg = {"backend": "postgres-agent", "dense_hits": len(sources), "sparse_hits": -1,
-               "embed_ms": -1, "dense_ms": -1, "sparse_ms": -1}
-    else:
-        hits, dbg = _direct_hits(llm, query, top_k or cfg.top_k)
-        answer = _direct_answer(query, hits, llm)
-        sources, calls = [h["chunk_id"] for h in hits], 0
+    hits, dbg = _hits(llm, query, top_k or cfg.top_k)
+    answer = _grounded_answer(query, hits, llm)
+    sources = [h["chunk_id"] for h in hits]
     ms = int((time.time() - t0) * 1000)
     try:
         from app.storage.db import get_conn
@@ -68,15 +45,11 @@ def ask(query: str, top_k: int = 10, max_turns: int = 4) -> dict:
                         (query, answer, json.dumps(sources[:20]), ms))
     except Exception:
         pass
-    return {"answer": answer, "sources": sources, "tool_calls_used": calls, "ms": ms,
+    return {"answer": answer, "sources": sources, "tool_calls_used": 0, "ms": ms,
             "retrieval": dbg}
 
 
 def search(query: str, top_k: int = 10) -> dict:
     llm = get_llm()
-    if cfg.llm_mode == "gateway":
-        from app.retrieval.retriever import PgHybridRetriever
-        hits, dbg = PgHybridRetriever(llm).retrieve_debug(query, top_k or cfg.top_k)
-    else:
-        hits, dbg = _direct_hits(llm, query, top_k or cfg.top_k)
+    hits, dbg = _hits(llm, query, top_k or cfg.top_k)
     return {"query": query, "results": hits, "retrieval": dbg}

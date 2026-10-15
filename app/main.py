@@ -26,8 +26,10 @@ app.include_router(system.router, prefix="/api/v1")
 app.include_router(student.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1/admin")
 
-# New warm UIs (old frontend/ + static/ left as-is)
-for _p, _d in (("/student", "web/student"), ("/admin", "web/admin"), ("/assets", "web/assets")):
+# Student + admin UIs live inside app/web/ so the whole app ships as one folder.
+_web = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+for _p, _sub in (("/student", "student"), ("/admin", "admin"), ("/assets", "assets")):
+    _d = os.path.join(_web, _sub)
     if os.path.isdir(_d):
         app.mount(_p, StaticFiles(directory=_d, html=True), name=_p.strip("/"))
 

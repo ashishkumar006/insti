@@ -16,7 +16,7 @@ def health():
         out["postgres"] = "down: {}".format(e)[:120]
     try:
         from app.config import cfg
-        out["llm"] = "{}:{}".format(cfg.llm_mode, cfg.gateway_url if cfg.llm_mode == "gateway" else cfg.paygo_chat_model)
+        out["llm"] = "direct:" + cfg.paygo_chat_model
     except Exception:
         pass
     return out

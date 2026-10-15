@@ -1,4 +1,8 @@
-"""Local Ollama adapter. Embeddings + chat, no gateway, no keys."""
+"""Local Ollama adapter: chat fallback for offline dev.
+
+Embeddings are Gemini-only (see direct_adapter.py), so this adapter
+intentionally has no embed methods.
+"""
 from typing import Dict, List, Optional
 import httpx
 
@@ -9,27 +13,9 @@ from app.llm.base import LLMProvider
 class OllamaAdapter(LLMProvider):
     supports_tools = False
 
-    def __init__(self, base_url: str = "", embed_model: str = "", chat_model: str = ""):
+    def __init__(self, base_url: str = "", chat_model: str = ""):
         self.base_url = (base_url or cfg.ollama_url).rstrip("/")
-        self.embed_model = embed_model or cfg.ollama_embed_model
         self.chat_model = chat_model or cfg.ollama_chat_model
-
-    def _embed_one(self, text: str, task: str) -> Dict:
-        prefix = "search_query: " if task == "retrieval_query" else "search_document: "
-        with httpx.Client(timeout=120.0) as c:
-            r = c.post(self.base_url + "/api/embeddings",
-                       json={"model": self.embed_model, "prompt": prefix + text})
-            r.raise_for_status()
-            vec = (r.json().get("embedding") or [])
-        if not vec:
-            raise RuntimeError("ollama returned no embedding")
-        return {"embedding": vec, "dim": len(vec)}
-
-    def embed(self, text: str) -> Dict:
-        return self._embed_one(text, "retrieval_document")
-
-    def embed_query(self, text: str) -> Dict:
-        return self._embed_one(text, "retrieval_query")
 
     def chat(self, messages: Optional[List[dict]] = None, system: Optional[str] = None,
              tools: Optional[list] = None, tool_choice: Optional[str] = None,

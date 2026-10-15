@@ -8,18 +8,11 @@ class Settings(BaseSettings):
         "DATABASE_URL",
         "postgresql://campus:campus@localhost:5432/campusguide",
     )
-    # --- LLM: direct only (gateway path retired to archive/retired-direct-only/) ---
-    llm_mode: str = os.getenv("LLM_MODE", "direct")  # direct (was: gateway)
-    gateway_url: str = os.getenv("GATEWAY_URL", "http://localhost:8109")
-    llm_provider: str = os.getenv("LLM_PROVIDER", "")
-    embed_provider: str = os.getenv("EMBED_PROVIDER", "ollama")
+    # --- LLM: Gemini only (no gateway, no local embedding models) ---
     paygo_api_key: str = os.getenv("PAYGO_API_KEY", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    # Cloud: nothing runs local — set EMBED_MODE=gemini so no localhost call is attempted.
-    embed_mode: str = os.getenv("EMBED_MODE", "ollama")  # ollama | gemini
     ocr_mode: str = os.getenv("OCR_MODE", "auto")  # auto | gemini | ollama | off
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-    ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
     ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "phi4-mini")
     paygo_chat_model: str = os.getenv("PAYGO_CHAT_MODEL", "gemini-2.0-flash")
     paygo_embed_model: str = os.getenv("PAYGO_EMBED_MODEL", "gemini-embedding-001")
@@ -32,9 +25,6 @@ class Settings(BaseSettings):
     sparse_weight: float = float(os.getenv("SPARSE_WEIGHT", "0.5"))
     embed_dim: int = int(os.getenv("EMBED_DIM", "768"))
     embed_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", "32"))
-    # --- Local index dirs (legacy file stores) ---
-    index_dir: str = os.getenv("INDEX_DIR", "indexes")
-    data_dir: str = os.getenv("DATA_DIR", "data")
     # --- Auth ---
     jwt_secret: str = os.getenv("JWT_SECRET", "dev-only-change-me")
     jwt_hours: int = int(os.getenv("JWT_HOURS", "12"))

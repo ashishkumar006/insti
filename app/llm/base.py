@@ -1,10 +1,15 @@
-"""LLM interface. All code depends on this, never on gateway directly."""
+"""LLM interface. All app code depends on this, not on any concrete provider."""
 from typing import Dict, List, Optional
 
 
 class LLMProvider:
     def embed(self, text: str) -> Dict:
         raise NotImplementedError
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        """Embed many document texts. Default: one by one; adapters may override
+        with a true batch API (Gemini does)."""
+        return [self.embed(t)["embedding"] for t in texts]
 
     def embed_query(self, text: str) -> Dict:
         raise NotImplementedError

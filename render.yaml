@@ -35,11 +35,7 @@ services:
       - key: DATABASE_URL
         sync: false
 
-      # --- LLM: direct mode, no gateway (retired to archive/) ---
-      - key: LLM_MODE
-        value: direct
-      - key: EMBED_MODE
-        value: gemini
+      # --- LLM: Gemini only (embeddings + chat) ---
       - key: OCR_MODE
         value: gemini
 

@@ -59,18 +59,20 @@ def _embed_job(doc_id: str, job_id: str):
         with get_conn() as conn:
             docs.set_status(conn, doc_id, "embedding")
             missing = docs.missing_embeddings(conn, doc_id)
-        _job_log(job_id, "Embedding {} chunks...".format(len(missing)))
+        size = max(1, min(100, cfg.embed_batch_size))
+        _job_log(job_id, "Embedding {} chunks in batches of {}...".format(len(missing), size))
         with get_conn() as conn:
             docs.set_total(conn, job_id, len(missing))
             docs.set_done(conn, job_id, 0)
         done = 0
-        for cid, idx, text in missing:
-            vec = llm.embed(text[:8000])["embedding"]
-            with get_conn() as conn:
-                docs.set_embedding(conn, cid, vec)
-            done += 1
-            if done % 10 == 0 or done == len(missing):
-                _job_log(job_id, "{}/{} embedded".format(done, len(missing)))
+        for start in range(0, len(missing), size):
+            batch = missing[start:start + size]
+            vecs = llm.embed_batch([t[:8000] for _, _, t in batch])
+            for (cid, _idx, _text), vec in zip(batch, vecs):
+                with get_conn() as conn:
+                    docs.set_embedding(conn, cid, vec)
+                done += 1
+            _job_log(job_id, "{}/{} embedded".format(done, len(missing)))
             with get_conn() as conn:
                 docs.set_done(conn, job_id, done)
         with get_conn() as conn:

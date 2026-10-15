@@ -1,10 +1,14 @@
 # Secrets — never commit real credentials
 .env
+.env.*
+!.env.example
 *.pem
 *.key
 
-# Runtime / generated — recreated on boot
+# Local-only folders — never upload to git
 var/
+archive/
+data/
 indexes/
 __pycache__/
 *.pyc
@@ -12,14 +16,17 @@ __pycache__/
 *.log
 
 # Local caches and one-off DBs
-archive/caches/
-archive/logs/
-archive/legacy-gateway/
 *.db
 
 # Internal / binary docs (not source)
 *.xlsx
 var/uploads/
+
+# Virtualenvs / tool caches
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
 
 # OS / editor
 .DS_Store

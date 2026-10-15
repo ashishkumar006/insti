@@ -49,7 +49,7 @@ async function doAsk(){
   document.querySelectorAll("#vote button").forEach(b=>b.classList.remove("on"));
   try{
     const topk=10;
-    const ra=await fetch("/api/v1/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,top_k:topk,max_turns:4})});
+    const ra=await fetch("/api/v1/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:q,top_k:topk})});
     if(!ra.ok){$("answer").className="";$("answer").innerHTML=`<div class="err">Sorry — server error (${ra.status}). Please try again.</div>`;return}
     const d=await ra.json();
     let ans=d.answer||"(no answer)";

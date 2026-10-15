@@ -17,9 +17,6 @@ services:
     ports: ["8200:8200"]
     environment:
       DATABASE_URL: postgresql://campus:campus@postgres:5432/campusguide
-      # Direct mode: everything in app/, no gateway (retired to archive/).
-      LLM_MODE: direct
-      EMBED_MODE: gemini
       OCR_MODE: gemini
       PAYGO_CHAT_MODEL: gemini-2.0-flash
       PAYGO_EMBED_MODEL: gemini-embedding-001
