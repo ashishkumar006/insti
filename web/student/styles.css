@@ -27,6 +27,17 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .search button:disabled{opacity:.6;cursor:wait}
 .ans-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--moss);font-weight:700;margin-bottom:8px}
 #answer{min-height:90px;white-space:pre-wrap;font-size:15px}
+#answer.answer-content{white-space:normal}
+#answer.answer-content p{margin:8px 0}
+#answer.answer-content strong{font-weight:700;color:var(--ink)}
+#answer.answer-content em{font-style:italic}
+#answer.answer-content code{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px}
+#answer.answer-content pre{background:#10201A;color:#CDE3D3;border-radius:10px;padding:12px;overflow:auto}
+#answer.answer-content pre code{background:none;border:none;padding:0;color:inherit}
+#answer.answer-content h3{font-size:16px;margin:14px 0 6px}
+#answer.answer-content h4{font-size:14px;margin:12px 0 4px}
+#answer.answer-content ul{margin:8px 0 8px 20px;padding:0}
+#answer.answer-content li{margin:4px 0}
 #answer.loading{color:var(--muted)}
 #answer .skel{display:block;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--soft) 25%,#F3E9D2 50%,var(--soft) 75%);background-size:200% 100%;animation:sh 1.2s infinite;margin:8px 0}
 @keyframes sh{to{background-position:-200% 0}}

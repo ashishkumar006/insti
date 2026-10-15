@@ -39,3 +39,10 @@ class DocumentOut(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class FeedbackRequest(BaseModel):
+    query: str
+    answer: str
+    helpful: bool
+    ms: int = 0

@@ -1,0 +1,84 @@
+# Render blueprint — one-click deploy of CampusGuide.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy:  Render dashboard -> New -> Blueprint -> select this repo
+#          Render detects this file and pre-fills everything.
+#
+# After the first deploy, set these in Dashboard -> your service -> Environment:
+#   DATABASE_URL     Neon pooled connection string (sslmode=require)
+#   GEMINI_API_KEY   Google AI Studio key, restricted to generativelanguage.googleapis.com
+#   ADMIN_EMAIL      first admin login email
+#   ADMIN_PASSWORD   first admin password
+#   JWT_SECRET       32+ random chars  ->  python -c "import secrets;print(secrets.token_urlsafe(48))"
+#
+# Neon extensions are created automatically by migrations/001_init.sql on boot.
+# If your Neon role lacks CREATE EXTENSION, run these once in the Neon SQL editor:
+#   CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+#   CREATE EXTENSION IF NOT EXISTS "vector";
+#   CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+#   CREATE EXTENSION IF NOT EXISTS "citext";
+
+services:
+  - type: web
+    name: campusguide
+    runtime: docker
+    dockerfilePath: ./infra/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+      # --- Database (Neon) ---
+      - key: DATABASE_URL
+        sync: false
+
+      # --- LLM: direct mode, no gateway (retired to archive/) ---
+      - key: LLM_MODE
+        value: direct
+      - key: EMBED_MODE
+        value: gemini
+      - key: OCR_MODE
+        value: gemini
+
+      # --- Gemini models ---
+      - key: PAYGO_CHAT_MODEL
+        value: gemini-2.0-flash
+      - key: PAYGO_EMBED_MODEL
+        value: gemini-embedding-001
+      - key: GEMINI_API_KEY
+        sync: false
+
+      # --- Must match migrations/001_init.sql vector(width) ---
+      - key: EMBED_DIM
+        value: "768"
+
+      # --- Retrieval / chunking ---
+      - key: CHUNK_SIZE
+        value: "750"
+      - key: CHUNK_OVERLAP
+        value: "75"
+      - key: TOP_K
+        value: "10"
+      - key: FUSION_K
+        value: "60"
+      - key: DENSE_WEIGHT
+        value: "0.5"
+      - key: SPARSE_WEIGHT
+        value: "0.5"
+
+      # --- Uploads ---
+      - key: MAX_UPLOAD_MB
+        value: "20"
+
+      # --- Auth (generate new values; never commit) ---
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_HOURS
+        value: "12"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

@@ -12,7 +12,7 @@ def _sents(p: str) -> List[str]:
 
 
 def _toks(t: str) -> int:
-    return max(1, int(len(t.split()) * 1.25))
+    return max(1, int(len(t.split()) * 1.3))
 
 
 def chunk(text: str, chunk_size: int = 750, chunk_overlap: int = 75) -> List[str]:
@@ -35,16 +35,28 @@ def chunk(text: str, chunk_size: int = 750, chunk_overlap: int = 75) -> List[str
             else:
                 if buf:
                     raw.append(buf)
-                buf = "" if _toks(s) > chunk_size else s
-                if _toks(s) > chunk_size:
-                    raw.append(s[: chunk_size * 4])
+                if _toks(s) <= chunk_size:
+                    buf = s
+                else:
+                    # long sentence: split by words into token-bounded pieces (no data lost)
+                    words = s.split()
+                    step = max(1, int(chunk_size / 1.3))
+                    for j in range(0, len(words), step):
+                        piece = " ".join(words[j : j + step])
+                        if piece.strip():
+                            raw.append(piece.strip())
+                    buf = ""
         if buf:
             raw.append(buf)
     if len(raw) <= 1:
         return raw
+    # token-based overlap (words, not chars) — 1.3 tok ≈ 1 word for speed
+    overlap_words = max(0, int(chunk_overlap / 1.3))
     out: List[str] = []
     for i, c in enumerate(raw):
-        if i > 0 and chunk_overlap > 0:
-            c = raw[i - 1][-chunk_overlap:] + " " + c
+        if i > 0 and overlap_words > 0:
+            prev_words = raw[i - 1].split()
+            tail = " ".join(prev_words[-overlap_words:]) if overlap_words < len(prev_words) else raw[i - 1]
+            c = tail + " " + c
         out.append(c.strip())
     return out

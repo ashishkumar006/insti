@@ -8,8 +8,8 @@ class Settings(BaseSettings):
         "DATABASE_URL",
         "postgresql://campus:campus@localhost:5432/campusguide",
     )
-    # --- LLM: gateway now, direct pay-go later ---
-    llm_mode: str = os.getenv("LLM_MODE", "gateway")  # gateway | direct
+    # --- LLM: direct only (gateway path retired to archive/retired-direct-only/) ---
+    llm_mode: str = os.getenv("LLM_MODE", "direct")  # direct (was: gateway)
     gateway_url: str = os.getenv("GATEWAY_URL", "http://localhost:8109")
     llm_provider: str = os.getenv("LLM_PROVIDER", "")
     embed_provider: str = os.getenv("EMBED_PROVIDER", "ollama")
