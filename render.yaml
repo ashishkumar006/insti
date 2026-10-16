@@ -42,8 +42,11 @@ services:
       # --- Gemini models ---
       - key: PAYGO_CHAT_MODEL
         value: gemini-flash-lite-latest
+      # Multimodal embedder (text + images), 768-d. Text-only fallback:
+      # gemini-embedding-001. Do not switch models with chunks already embedded:
+      # the two models produce incompatible vector spaces.
       - key: PAYGO_EMBED_MODEL
-        value: gemini-embedding-001
+        value: gemini-embedding-2
       - key: GEMINI_API_KEY
         sync: false
 
@@ -51,11 +54,7 @@ services:
       - key: EMBED_DIM
         value: "768"
 
-      # --- Retrieval / chunking ---
-      - key: CHUNK_SIZE
-        value: "750"
-      - key: CHUNK_OVERLAP
-        value: "75"
+      # --- Retrieval / chunking (defaults live in app/config.py: 350/50) ---
       - key: TOP_K
         value: "10"
       - key: FUSION_K

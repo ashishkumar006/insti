@@ -43,12 +43,21 @@ async function load(){
   const r=await fetch("/api/v1/admin/documents",{headers:H()});
   if(r.status===401){showLogin(true);return}
   const d=await r.json();
-  $("docs").innerHTML=`<table><thead><tr><th>File</th><th>SHA</th><th>Status</th><th>Chunks</th><th>Updated</th><th></th></tr></thead><tbody>`+
-    d.documents.map(x=>`<tr><td>${x.filename}</td><td><code>${x.sha_short}</code></td>
-    <td><span class="pill ${x.status}">${x.status}</span></td><td>${x.chunks||"—"}</td><td>${x.updated_at||""}</td>
-    <td><button onclick="delDoc('${x.id}')">Delete</button></td></tr>`).join("")+`</tbody></table>`;
+  $("docs").innerHTML=`<table><thead><tr><th>File</th><th>SHA</th><th>Status</th><th>Chunks</th><th>Embed model</th><th>Updated</th><th></th></tr></thead><tbody>`+
+    d.documents.map(x=>{const m=x.models||"";const stale=!/gemini-embedding-2/.test(m);return `<tr><td>${x.filename}</td><td><code>${x.sha_short}</code></td>
+    <td><span class="pill ${x.status}">${x.status}</span></td><td>${x.chunks||"—"}</td>
+    <td style="font-size:12px">${m?m:"—"}${stale&&x.chunks?" ⚠️":""}</td><td>${x.updated_at||""}</td>
+    <td><button class="ghost" onclick='reDoc("${x.id}","missing")' title="Fill chunks that failed/skipped embedding">Fill gaps</button>
+        <button class="ghost" onclick='reDoc("${x.id}","all")' title="Wipe and re-embed every chunk with the current model (use after changing PAYGO_EMBED_MODEL)">Re-embed all</button>
+        <button onclick="delDoc('${x.id}')">Delete</button></td></tr>`}).join("")+`</tbody></table>`;
 }
-async function delDoc(id){if(!confirm("Delete indexed chunks?"))return;await fetch("/api/v1/admin/documents/"+id,{method:"DELETE",headers:H()});load()}
+async function delDoc(id){if(!confirm("Delete this document and all its chunks?"))return;await fetch("/api/v1/admin/documents/"+id,{method:"DELETE",headers:H()});load()}
+async function reDoc(id,scope){
+  if(scope==="all"&&!confirm("Wipe and re-embed ALL chunks with the current embedding model?\nUse this after changing PAYGO_EMBED_MODEL.\nFor new chunk boundaries, Delete + re-upload instead."))return;
+  const r=await fetch("/api/v1/admin/documents/"+id+"/reindex?scope="+scope,{method:"POST",headers:H()});
+  if(!r.ok){$("upmsg").textContent="Re-embed failed to start ("+r.status+")";return}
+  const d=await r.json();$("upmsg").textContent="Re-embed started ("+d.scope+") …";follow(d.job_id);
+}
 async function follow(job){
   // Poll until the job finishes — no artificial cap (large books take a while).
   // Shows a determinate bar when the server reports done/total, else elapsed time.

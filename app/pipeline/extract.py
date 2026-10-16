@@ -66,12 +66,13 @@ def _pdf(path: str) -> str:
         return vlm
     if text:
         return text
-    raise ValueError("No extractable text (scanned PDF needs `ollama pull deepseek-ocr`)")
+    raise ValueError("No extractable text (scanned PDFs need OCR: set OCR_MODE=gemini with a Gemini key)")
 
 
-def _pdf_vlm_ocr(path: str, max_pages: int = 30, dpi: int = 150) -> str:
-    """Scanned pages -> text. Order: Gemini API (cloud-safe) -> local DeepSeek-OCR.
+def _pdf_vlm_ocr(path: str, batch_pages: int = 10, dpi: int = 150) -> str:
+    """Scanned pages -> text. ALL pages, OCR'd in batches (no page cap).
 
+    Order: Gemini API (cloud-safe) -> local DeepSeek-OCR.
     OCR_MODE env: auto (both) | gemini | ollama | off.
     """
     import fitz  # PyMuPDF
@@ -80,45 +81,47 @@ def _pdf_vlm_ocr(path: str, max_pages: int = 30, dpi: int = 150) -> str:
     if mode == "off":
         return ""
     doc = fitz.open(path)
-    pages = min(len(doc), max_pages)
-    pngs = [doc[i].get_pixmap(dpi=dpi).tobytes("png") for i in range(pages)]
-    if mode in ("auto", "gemini"):
-        key = cfg.gemini_api_key or cfg.paygo_api_key
-        if key:
+    total = len(doc)
+    out = []
+    for start in range(0, total, batch_pages):
+        end = min(start + batch_pages, total)
+        pngs = [doc[i].get_pixmap(dpi=dpi).tobytes("png") for i in range(start, end)]
+        if mode in ("auto", "gemini"):
+            key = cfg.gemini_api_key or cfg.paygo_api_key
+            if key:
+                try:
+                    from app.llm.gemini_adapter import GeminiAdapter
+                    g = GeminiAdapter(key)
+                    out.extend([g.ocr_image(b) for b in pngs])
+                    continue
+                except Exception as e:
+                    if mode == "gemini":
+                        raise ValueError("Gemini OCR failed on pages {}-{}: {}".format(
+                            start + 1, end, str(e)[:120]))
+            if mode == "gemini":
+                continue
+        if mode in ("auto", "ollama"):
+            import base64
+            import httpx
             try:
-                from app.llm.gemini_adapter import GeminiAdapter
-                g = GeminiAdapter(key)
-                out = [g.ocr_image(b) for b in pngs]
-                if any(o.strip() for o in out):
-                    return "\n\n".join([p for p in out if p.strip()])
+                with httpx.Client(timeout=300.0) as c:
+                    show = c.post(cfg.ollama_url.rstrip("/") + "/api/show", json={"name": "deepseek-ocr"})
+                    if show.status_code != 200:
+                        continue
+                    for img in pngs:
+                        b64 = base64.b64encode(img).decode()
+                        r = c.post(cfg.ollama_url.rstrip("/") + "/api/generate", json={
+                            "model": "deepseek-ocr",
+                            "prompt": "<image>\n<|grounding|>Convert the document to markdown.",
+                            "images": [b64], "stream": False,
+                            "options": {"temperature": 0.0, "num_predict": 4096}})
+                        r.raise_for_status()
+                        t = (r.json().get("response") or "").strip()
+                        if t:
+                            out.append(t)
             except Exception:
-                pass
-        if mode == "gemini":
-            return ""
-    if mode in ("auto", "ollama"):
-        import base64
-        import httpx
-        out = []
-        try:
-            with httpx.Client(timeout=300.0) as c:
-                show = c.post(cfg.ollama_url.rstrip("/") + "/api/show", json={"name": "deepseek-ocr"})
-                if show.status_code != 200:
-                    return ""
-                for img in pngs:
-                    b64 = base64.b64encode(img).decode()
-                    r = c.post(cfg.ollama_url.rstrip("/") + "/api/generate", json={
-                        "model": "deepseek-ocr",
-                        "prompt": "<image>\n<|grounding|>Convert the document to markdown.",
-                        "images": [b64], "stream": False,
-                        "options": {"temperature": 0.0, "num_predict": 4096}})
-                    r.raise_for_status()
-                    t = (r.json().get("response") or "").strip()
-                    if t:
-                        out.append(t)
-        except Exception:
-            return "\n\n".join([p for p in out if p.strip()])
-        return "\n\n".join([p for p in out if p.strip()])
-    return ""
+                break
+    return "\n\n".join([p for p in out if p.strip()])
 
 
 # ── Office / structured ─────────────────────────────────────────────────────

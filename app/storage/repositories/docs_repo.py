@@ -34,13 +34,16 @@ def set_status(conn, doc_id, status, chunks=0, error=None):
 def list_docs(conn):
     cur = conn.cursor()
     cur.execute("""SELECT id,filename,bytes,sha_norm,status,chunks,error,
-                          to_char(updated_at,'YYYY-MM-DD HH24:MI') FROM documents
-                   ORDER BY updated_at DESC""")
+                          to_char(updated_at,'YYYY-MM-DD HH24:MI'),
+                          (SELECT string_agg(DISTINCT c.embed_model, ',')
+                             FROM chunks c WHERE c.doc_id=documents.id) AS models
+                   FROM documents ORDER BY updated_at DESC""")
     out = []
     for r in cur.fetchall():
         out.append({"id": str(r[0]), "filename": r[1], "bytes": r[2],
                     "sha_short": (r[3] or "")[:10], "status": r[4],
-                    "chunks": r[5], "error": r[6], "updated_at": r[7]})
+                    "chunks": r[5], "error": r[6], "updated_at": r[7],
+                    "models": r[8] or ""})
     return out
 
 
@@ -62,11 +65,12 @@ def missing_embeddings(conn, doc_id):
     return cur.fetchall()
 
 
-def set_embedding(conn, chunk_id, vec):
+def set_embedding(conn, chunk_id, vec, model: str = ""):
     from app.retrieval.dense_pg import _vec_literal
+    from app.config import cfg
     cur = conn.cursor()
-    cur.execute("UPDATE chunks SET embedding=%s::vector WHERE id=%s",
-                (_vec_literal(list(vec)), str(chunk_id)))
+    cur.execute("UPDATE chunks SET embedding=%s::vector, embed_model=%s WHERE id=%s",
+                (_vec_literal(list(vec)), model or cfg.paygo_embed_model, str(chunk_id)))
 
 
 def delete_doc(conn, doc_id):

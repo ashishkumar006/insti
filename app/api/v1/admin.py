@@ -56,13 +56,19 @@ def upload(file: UploadFile = File(...), _=Depends(require_admin)):
 
 
 @router.post("/documents/{doc_id}/reindex")
-def reindex(doc_id: str, _=Depends(require_admin)):
+def reindex(doc_id: str, scope: str = "missing", _=Depends(require_admin)):
+    """Re-embed a document. scope=missing fills failed/gap chunks only;
+    scope=all wipes vectors first - use after changing the embedding model,
+    since vectors from different models must never share one index."""
     from app.services.ingest_service import _embed_job
     import threading
+    if scope not in ("missing", "all"):
+        raise HTTPException(400, "scope must be 'missing' or 'all'")
     with get_conn() as conn:
-        job_id = docs.create_job(conn, doc_id, "reindex")
-    threading.Thread(target=_embed_job, args=(doc_id, job_id), daemon=True).start()
-    return {"job_id": job_id, "status": "started"}
+        job_id = docs.create_job(conn, doc_id, "reindex:{}".format(scope))
+    threading.Thread(target=_embed_job, args=(doc_id, job_id, scope == "all"),
+                     daemon=True).start()
+    return {"job_id": job_id, "status": "started", "scope": scope}
 
 
 @router.delete("/documents/{doc_id}")

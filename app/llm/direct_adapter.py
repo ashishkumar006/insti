@@ -26,11 +26,17 @@ class DirectAdapter(LLMProvider):
                 "GEMINI_API_KEY is not set - Gemini is the only embedding provider")
         return self._gemini
 
-    def embed(self, text: str) -> Dict:
-        return self._gemini_or_raise().embed(text)
+    def embed(self, text: str, title: str = "") -> Dict:
+        return self._gemini_or_raise().embed(text, title)
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        return self._gemini_or_raise().embed_batch(texts)
+    def embed_image(self, data: bytes, mime: str = "image/png", title: str = "") -> Dict:
+        return self._gemini_or_raise().embed_image(data, mime, title)
+
+    def embed_images_batch(self, items: list, title: str = "") -> List[List[float]]:
+        return self._gemini_or_raise().embed_images_batch(items, title)
+
+    def embed_batch(self, texts: List[str], title: str = "") -> List[List[float]]:
+        return self._gemini_or_raise().embed_batch(texts, title)
 
     def embed_query(self, text: str) -> Dict:
         return self._gemini_or_raise().embed_query(text)

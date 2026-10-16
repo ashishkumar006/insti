@@ -6,10 +6,14 @@ class LLMProvider:
     def embed(self, text: str) -> Dict:
         raise NotImplementedError
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: List[str], title: str = "") -> List[List[float]]:
         """Embed many document texts. Default: one by one; adapters may override
         with a true batch API (Gemini does)."""
-        return [self.embed(t)["embedding"] for t in texts]
+        return [self.embed(t, title)["embedding"] for t in texts]
+
+    def embed_image(self, data: bytes, mime: str = "image/png", title: str = "") -> Dict:
+        """Embed an image (multimodal embedders only)."""
+        raise NotImplementedError
 
     def embed_query(self, text: str) -> Dict:
         raise NotImplementedError

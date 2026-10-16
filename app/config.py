@@ -15,16 +15,21 @@ class Settings(BaseSettings):
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "phi4-mini")
     paygo_chat_model: str = os.getenv("PAYGO_CHAT_MODEL", "gemini-flash-lite-latest")
-    paygo_embed_model: str = os.getenv("PAYGO_EMBED_MODEL", "gemini-embedding-001")
+    # Multimodal embedder (text + images), 3072-d truncated to embed_dim.
+    # Text-only fallback route: PAYGO_EMBED_MODEL=gemini-embedding-001.
+    paygo_embed_model: str = os.getenv("PAYGO_EMBED_MODEL", "gemini-embedding-2")
     # --- Retrieval / chunking ---
-    chunk_size: int = int(os.getenv("CHUNK_SIZE", "750"))
-    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "75"))
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "350"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "50"))
     top_k: int = int(os.getenv("TOP_K", "10"))
     fusion_k: int = int(os.getenv("FUSION_K", "60"))
     dense_weight: float = float(os.getenv("DENSE_WEIGHT", "0.5"))
     sparse_weight: float = float(os.getenv("SPARSE_WEIGHT", "0.5"))
     embed_dim: int = int(os.getenv("EMBED_DIM", "768"))
     embed_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", "32"))
+    # Embedding jobs run concurrently this many at a time (1 = safe for free
+    # Gemini quotas; a shared 512MB host cannot run more anyway).
+    embed_concurrency: int = int(os.getenv("EMBED_CONCURRENCY", "1"))
     # --- Auth ---
     jwt_secret: str = os.getenv("JWT_SECRET", "dev-only-change-me")
     jwt_hours: int = int(os.getenv("JWT_HOURS", "12"))

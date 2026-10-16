@@ -19,7 +19,7 @@ services:
       DATABASE_URL: postgresql://campus:campus@postgres:5432/campusguide
       OCR_MODE: gemini
       PAYGO_CHAT_MODEL: gemini-flash-lite-latest
-      PAYGO_EMBED_MODEL: gemini-embedding-001
+      PAYGO_EMBED_MODEL: gemini-embedding-2
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       # EMBED_DIM must match the chunks.embedding vector() width in
       # migrations/001_init.sql. Changing it needs an ALTER TABLE.

@@ -17,13 +17,15 @@ class GeminiAdapter(LLMProvider):
         self.chat_model = chat_model or cfg.paygo_chat_model
         self.embed_model = embed_model or cfg.paygo_embed_model
 
-    def _embed_one(self, text: str, task: str) -> Dict:
+    def _embed_one(self, text: str, task: str, title: str = "") -> Dict:
         url = ("https://generativelanguage.googleapis.com/v1beta/models/{}"
                ":embedContent".format(self.embed_model))
         body = {"model": "models/" + self.embed_model,
                 "content": {"parts": [{"text": text}]},
                 "taskType": "RETRIEVAL_QUERY" if task == "retrieval_query" else "RETRIEVAL_DOCUMENT",
                 "outputDimensionality": cfg.embed_dim}
+        if title:
+            body["title"] = title[:500]
         with httpx.Client(timeout=120.0) as c:
             r = c.post(url, json=body, params={"key": self.api_key})
             if r.status_code != 200:
@@ -33,16 +35,46 @@ class GeminiAdapter(LLMProvider):
             raise RuntimeError("gemini returned no embedding")
         return {"embedding": vec, "dim": len(vec)}
 
-    def embed(self, text: str) -> Dict:
-        return self._embed_one(text, "retrieval_document")
+    def embed(self, text: str, title: str = "") -> Dict:
+        return self._embed_one(text, "retrieval_document", title)
+
+    def embed_image(self, data: bytes, mime: str = "image/png", title: str = "") -> Dict:
+        """Embed a raw image (multimodal models only, e.g. gemini-embedding-2)."""
+        return self._embed_media_one(data, mime, "retrieval_document", title)
+
+    def _embed_media_one(self, data: bytes, mime: str, task: str, title: str = "") -> Dict:
+        import base64
+        url = ("https://generativelanguage.googleapis.com/v1beta/models/{}"
+               ":embedContent".format(self.embed_model))
+        body = {"model": "models/" + self.embed_model,
+                "content": {"parts": [{"inline_data": {"mime_type": mime,
+                                                       "data": base64.b64encode(data).decode()}}]},
+                "taskType": "RETRIEVAL_QUERY" if task == "retrieval_query" else "RETRIEVAL_DOCUMENT",
+                "outputDimensionality": cfg.embed_dim}
+        if title:
+            body["title"] = title[:500]
+        with httpx.Client(timeout=120.0) as c:
+            r = c.post(url, json=body, params={"key": self.api_key})
+            if r.status_code != 200:
+                raise RuntimeError("gemini embed failed: {}".format(r.status_code))
+            vec = ((r.json().get("embedding") or {}).get("values") or [])
+        if not vec:
+            raise RuntimeError("gemini returned no embedding")
+        return {"embedding": vec, "dim": len(vec)
+                }
 
     def embed_query(self, text: str) -> Dict:
         return self._embed_one(text, "retrieval_query")
 
     def _post_retry(self, client: httpx.Client, url: str, body: dict,
-                    attempts: int = 5) -> dict:
-        """POST with exponential backoff on 429/5xx; honors Retry-After."""
-        delay = 1.0
+                    attempts: int = 6) -> dict:
+        """POST with patient backoff on 429/5xx; honors Retry-After.
+
+        Free-tier embedding quotas are per-minute windows, so a burst needs to
+        wait ~a minute: exponential backoff 2s -> ~100s with jitter.
+        """
+        import random
+        delay = 2.0
         status = None
         for n in range(attempts):
             r = client.post(url, json=body, params={"key": self.api_key})
@@ -56,11 +88,12 @@ class GeminiAdapter(LLMProvider):
                     wait = max(delay, float(r.headers.get("retry-after") or 0))
                 except ValueError:
                     wait = delay
-                time.sleep(min(wait, 60.0))
-                delay *= 2
+                wait = min(wait * (1 + random.random() * 0.25), 120.0)
+                time.sleep(wait)
+                delay *= 3
         raise RuntimeError("gemini call failed: {}".format(status))
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: List[str], title: str = "") -> List[List[float]]:
         """Batch embed documents via batchEmbedContents (up to 100 per request)."""
         if not texts:
             return []
@@ -68,13 +101,49 @@ class GeminiAdapter(LLMProvider):
         url = ("https://generativelanguage.googleapis.com/v1beta/models/{}"
                ":batchEmbedContents".format(self.embed_model))
         out: List[List[float]] = []
+        req: dict = {}
+        if title:
+            req["title"] = title[:500]
         with httpx.Client(timeout=120.0) as c:
             for i in range(0, len(texts), size):
-                reqs = [{"model": "models/" + self.embed_model,
-                         "content": {"parts": [{"text": t}]},
-                         "taskType": "RETRIEVAL_DOCUMENT",
-                         "outputDimensionality": cfg.embed_dim}
+                reqs = [dict({"model": "models/" + self.embed_model,
+                              "content": {"parts": [{"text": t}]},
+                              "taskType": "RETRIEVAL_DOCUMENT",
+                              "outputDimensionality": cfg.embed_dim}, **req)
                         for t in texts[i:i + size]]
+                data = self._post_retry(c, url, {"requests": reqs})
+                embs = data.get("embeddings") or []
+                if len(embs) != len(reqs):
+                    raise RuntimeError("gemini batch returned {} embeddings for {} inputs"
+                                       .format(len(embs), len(reqs)))
+                for e in embs:
+                    vec = e.get("values") or []
+                    if not vec:
+                        raise RuntimeError("gemini returned no embedding")
+                    out.append(vec)
+        return out
+
+    def embed_images_batch(self, items: List[tuple], title: str = "") -> List[List[float]]:
+        """Batch embed images: items = [(bytes, mime), ...]."""
+        if not items:
+            return []
+        import base64
+        size = max(1, min(100, cfg.embed_batch_size))
+        url = ("https://generativelanguage.googleapis.com/v1beta/models/{}"
+               ":batchEmbedContents".format(self.embed_model))
+        out: List[List[float]] = []
+        req: dict = {}
+        if title:
+            req["title"] = title[:500]
+        with httpx.Client(timeout=120.0) as c:
+            for i in range(0, len(items), size):
+                reqs = [dict({"model": "models/" + self.embed_model,
+                              "content": {"parts": [{"inline_data": {
+                                  "mime_type": mime,
+                                  "data": base64.b64encode(data).decode()}}]},
+                              "taskType": "RETRIEVAL_DOCUMENT",
+                              "outputDimensionality": cfg.embed_dim}, **req)
+                        for data, mime in items[i:i + size]]
                 data = self._post_retry(c, url, {"requests": reqs})
                 embs = data.get("embeddings") or []
                 if len(embs) != len(reqs):
