@@ -65,8 +65,8 @@ services:
         value: "0.5"
 
       # --- Uploads ---
-      - key: MAX_UPLOAD_MB
-        value: "20"
+      # Upload size cap: 0/absent = unlimited (default). Raise only to protect
+      # a small host from extreme scans.
 
       # --- Auth (generate new values; never commit) ---
       - key: JWT_SECRET

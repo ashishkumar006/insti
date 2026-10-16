@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
     # --- Uploads ---
     storage_dir: str = os.getenv("STORAGE_DIR", "var/uploads")
-    max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "20"))
+    # 0 = unlimited (default). Set a ceiling (e.g. 100) only if you want to
+    # protect a small host from very large scans; the check is skipped at 0.
+    max_upload_mb: int = int(os.getenv("MAX_UPLOAD_MB", "0"))
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

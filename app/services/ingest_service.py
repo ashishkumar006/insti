@@ -27,7 +27,7 @@ def ingest_upload(staged_path: str, filename: str) -> dict:
     """Validate -> hash -> dedup -> background embed. Returns doc + job ids."""
     with open(staged_path, "rb") as f:
         raw_bytes = f.read()
-    if len(raw_bytes) > cfg.max_upload_mb * 1024 * 1024:
+    if cfg.max_upload_mb > 0 and len(raw_bytes) > cfg.max_upload_mb * 1024 * 1024:
         raise ValueError("File over {}MB limit".format(cfg.max_upload_mb))
     sha_raw = hx.sha256_bytes(raw_bytes)
     raw_text = ex.extract_text(staged_path, filename)

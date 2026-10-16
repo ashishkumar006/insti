@@ -53,6 +53,9 @@ def upload(file: UploadFile = File(...), _=Depends(require_admin)):
         return ingest.ingest_upload(staged, file.filename)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:  # corrupt/unreadable file -> friendly 400, not a 500
+        raise HTTPException(400, "Could not read {}: {}".format(
+            file.filename, str(e)[:120]))
 
 
 @router.post("/documents/{doc_id}/reindex")
