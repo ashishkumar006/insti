@@ -36,14 +36,16 @@ def list_docs(conn):
     cur.execute("""SELECT id,filename,bytes,sha_norm,status,chunks,error,
                           to_char(updated_at,'YYYY-MM-DD HH24:MI'),
                           (SELECT string_agg(DISTINCT c.embed_model, ',')
-                             FROM chunks c WHERE c.doc_id=documents.id) AS models
+                             FROM chunks c WHERE c.doc_id=documents.id) AS models,
+                          (SELECT j.id FROM jobs j WHERE j.doc_id=documents.id
+                             ORDER BY j.created_at DESC LIMIT 1) AS job_id
                    FROM documents ORDER BY updated_at DESC""")
     out = []
     for r in cur.fetchall():
         out.append({"id": str(r[0]), "filename": r[1], "bytes": r[2],
                     "sha_short": (r[3] or "")[:10], "status": r[4],
                     "chunks": r[5], "error": r[6], "updated_at": r[7],
-                    "models": r[8] or ""})
+                    "models": r[8] or "", "job_id": str(r[9]) if r[9] else None})
     return out
 
 

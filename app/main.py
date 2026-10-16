@@ -21,6 +21,11 @@ def _startup():
             ensure_seed_admin(conn)
     except Exception as e:  # noqa - never crash boot on DB down
         print("[startup] db not ready:", e)
+    try:
+        from app.keepalive import start_keepalive
+        start_keepalive()  # free hosts sleep after ~15 idle min; self-ping prevents it
+    except Exception:
+        pass
 
 
 app.include_router(system.router, prefix="/api/v1")
